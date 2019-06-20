@@ -179,7 +179,7 @@ class SantaMonicaScraper(EngageScraper):
         accumulator = []
         for keep_this in keep:
             kept = [keeping for keeping in dictionary_agenda[keep_this] if self.test_item(keeping)]
-            accumulator.extend(dictionary_agenda[keep_this])
+            accumulator.extend(kept)
         new_object["items"] = accumulator
         return new_object
 
