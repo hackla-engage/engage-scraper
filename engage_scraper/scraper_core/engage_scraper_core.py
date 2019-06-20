@@ -37,7 +37,7 @@ class EngageScraper(ABC):
         pass
 
     @abstractmethod
-    def process_agenda(self, agenda_data, meeting_id):
+    def _process_agenda(self, agenda_data, meeting_id):
         """
         process_agenda takes one agenda document (for instance HTML document) data.
         A processed agenda will have to process each of its items. Each agenda item might
@@ -49,28 +49,28 @@ class EngageScraper(ABC):
         pass
 
     @abstractmethod
-    def scrape_agenda_item(self, agenda_item_location):
+    def _scrape_agenda_item(self, agenda_item_location):
         """
         Takes a location and produces the data from the item and calls process_agenda_item
         """
         pass
 
     @abstractmethod
-    def process_agenda_item(self, agenda_item_data, agenda_item_id, meeting_id, meeting_time):
+    def _process_agenda_item(self, agenda_item_data, agenda_item_id, meeting_id, meeting_time):
         """
         The result of process agenda item will be a dict that can be stored by store_agenda_item
         """
         pass
 
     @abstractmethod
-    def store_agenda(self, processed_agenda, committee):
+    def _store_agenda(self, processed_agenda, committee):
         """
         Calls to DB should be here for the main agenda content
         """
         pass
 
     @abstractmethod
-    def store_agenda_items(self, agenda_dict, agenda_saved):
+    def _store_agenda_items(self, agenda_dict, agenda_saved):
         """
         Calls to the DB should be here for agenda item content
         """
