@@ -1,5 +1,6 @@
 import os
 import re
+from datetime import datetime, timedelta
 import requests
 import unicodedata
 from ..scraper_core.engage_scraper_core import EngageScraper
@@ -347,10 +348,20 @@ class SantaMonicaScraper(EngageScraper):
 
     def _store_agenda(self, processed_agenda):
         session = self._DBsession()
+        seconds_delta_for_pdf = 5 * 60  # 5 minutes post cutoff
+        dt = datetime.fromtimestamp(processed_agenda["meeting_time"])
+        dt_local = dt.astimezone(tz=self._tz)
+        dt_local = dt_local.replace(hour=self._Committee.cutoff_hour,
+                         minute=self._Committee.cutoff_minute)
+        dt_cutoff = dt_local + timedelta(days=self._Committee.cutoff_offset_days)
+        cutoff_timestamp = dt_cutoff.timestamp()
+        pdf_timestamp = cutoff_timestamp + seconds_delta_for_pdf
         stored_agenda = Agenda(
             meeting_time=processed_agenda["meeting_time"],
             committee_id=self._Committee.id,
-            meeting_id=processed_agenda["meeting_id"])
+            meeting_id=processed_agenda["meeting_id"],
+            cutoff_time=int(cutoff_timestamp),
+            pdf_time=int(pdf_timestamp))
         session.add(stored_agenda)
         try:
             session.commit()

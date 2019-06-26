@@ -7,7 +7,7 @@ def seed_tables(Session):
         session.add(Committee(name="Santa Monica City Council",
                               email="engage@engage.town",
                               cutoff_offset_days=0,
-                              cutoff_hour=11,
-                              cutoff_minutes=59
+                              cutoff_hour=12,
+                              cutoff_minutes=0
                               ))
         session.commit()
