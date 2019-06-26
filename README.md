@@ -9,24 +9,20 @@ To use the postgres `dbutils.py` make sure to set these two environment variable
 * `POSTGRES_URI` # a URI string of the form `username:password@hostname`
 * `POSTGRES_DB`  # The database used for cataloging your municipality's agendas.
 
-
 ## An example of using the Santa Monica scraper library
 
 ```{python}
 from engage_scraper.scraper_logics import santamonica_scraper_logic
 
-scraper = santamonica_scraper_logic.SantaMonicaScraper(
-    base_agenda_location='http://santamonicacityca.iqm2.com/Citizens/Detail_Meeting.aspx?ID=', 
-    agendas_table_location='https://www.smgov.net/departments/clerk/agendas.aspx'); 
-scraper.get_available_agendas();
+scraper = santamonica_scraper_logic.SantaMonicaScraper(committee="Santa Monica City Council")
+scraper.get_available_agendas()
+scraper.scrape()
 ```
 
 ### For SantaMonicaScraper instantiation
 
 parameters are:
 
-* `base_agenda_location` # String URL prefix
-* `agendas_table_location` # String URL
 * `tz_string="America/Los_Angeles"` # defaulted string
 * `years=["2019"]` # defaulted array of strings of years
 * `committee="Santa Monica City Council"` # defaulted string of council name
@@ -35,3 +31,8 @@ parameters are:
 
 * `.get_available_agendas()` # To get available agendas, no arguments
 * `.scrape()` # To process agendas and store contents
+
+### Feel free to expose more
+
+* Write wrappers for internal functions if you want to expose them
+* Write extra functions to handle more complex municipality-specific tasks
