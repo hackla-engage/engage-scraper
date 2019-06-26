@@ -26,16 +26,22 @@ class Committee(Base):
     cutoff_minute = Column(Integer, default=59)
     location_tz = Column(String, nullable=False,
                          default="America/Los_Angeles")
-    location_lat = Column(Float, nullable=False, default=34.024212)
-    location_lng = Column(Float, nullable=False, default=-118.496475)
+    base_agenda_location = Column(
+        String, nullable=False, default="http://santamonicacityca.iqm2.com/Citizens/Detail_Meeting.aspx?ID=")
+    agendas_table_location = Column(
+        String, nullable=False, default="https://www.smgov.net/departments/clerk/agendas.aspx")
 
 
 class Agenda(Base):
     __tablename__ = "ingest_agenda"
     id = Column(Integer, Sequence("ingest_agenda_id_seq"), primary_key=True)
     meeting_time = Column(Integer)  # Unix timestamp
-    committee_id = Column(ForeignKey("ingest_committee.id", ondelete='CASCADE'))
+    committee_id = Column(ForeignKey(
+        "ingest_committee.id", ondelete='CASCADE'))
     meeting_id = Column(String(20), nullable=False)  # Agenda ID
+    pdf_time = Column(Integer) # UNIX timestamp
+    cutoff_time = Column(Integer) # UNIX timestamp
+    pdf_location = Column(String, nullable=True) # static address for pdf 
     processed = Column(Boolean, default=False)
 
 
@@ -47,7 +53,8 @@ tag_association_table = Table('ingest_agendaitem_tags', Base.metadata,
 
 class AgendaItem(Base):
     __tablename__ = "ingest_agendaitem"
-    id = Column(Integer, Sequence('ingest_agendaitem_id_seq'), primary_key=True)
+    id = Column(Integer, Sequence(
+        'ingest_agendaitem_id_seq'), primary_key=True)
     title = Column(Text, nullable=False)
     department = Column(String(250), nullable=True)
     body = Column(ARRAY(Text), nullable=False)
@@ -57,17 +64,22 @@ class AgendaItem(Base):
     agenda_item_id = Column(String(20), nullable=False)
     # tags = relationship("Tag", secondary=tag_association_table)
 
+
 class AgendaRecommendation(Base):
     __tablename__ = "ingest_agendarecommendation"
-    id = Column(Integer, Sequence('ingest_agendarecommendation_id_seq'), primary_key=True)
-    agenda_item_id = Column(ForeignKey("ingest_agendaitem.id", ondelete="CASCADE"))
+    id = Column(Integer, Sequence(
+        'ingest_agendarecommendation_id_seq'), primary_key=True)
+    agenda_item_id = Column(ForeignKey(
+        "ingest_agendaitem.id", ondelete="CASCADE"))
     recommendation = Column(ARRAY(Text))
 
 
 class CommitteeMember(Base):
     __tablename__ = "ingest_committeemember"
-    id = Column(Integer, Sequence('ingest_committeemember_id_seq'), primary_key=True)
+    id = Column(Integer, Sequence(
+        'ingest_committeemember_id_seq'), primary_key=True)
     firstname = Column(String(250))
     lastname = Column(String(250))
     email = Column(String(250))
-    committee_id = Column(ForeignKey("ingest_committee.id", ondelete="CASCADE"))
+    committee_id = Column(ForeignKey(
+        "ingest_committee.id", ondelete="CASCADE"))

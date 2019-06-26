@@ -2,20 +2,18 @@ from abc import ABC, abstractmethod, abstractproperty
 from pytz import timezone
 
 class EngageScraper(ABC):
-    def __init__(self, base_agenda_location, tz_string):
+    def __init__(self, tz_string):
         super().__init__()
         self._agenda_locations = []
-        self._base_agenda_location = base_agenda_location
         self._tz = timezone(tz_string)
 
-    def _get_agenda_locations(self):
-        self._agenda_locations
+    @property
+    def agenda_locations(self):
+        return self._agenda_locations
 
-    def _set_agenda_locations(self, agenda_locations):
-        self._agenda_locations = agenda_locations
-
-    agenda_base_location = property(
-        _get_agenda_locations, _set_agenda_locations, "The locations of the root of all agendas.")
+    @agenda_locations.setter
+    def agenda_locations(self, locations):
+        self._agenda_locations = locations
 
     @abstractmethod
     def get_available_agendas(self):

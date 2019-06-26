@@ -2,6 +2,9 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+def create_postgres_tables(Base, engine):
+    Base.metadata.create_all(engine)    
+
 def create_postgres_connection():
     uri = os.getenv('POSTGRES_URI')
     db = os.getenv('POSTGRES_DB')

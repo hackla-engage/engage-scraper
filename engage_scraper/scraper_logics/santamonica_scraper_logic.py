@@ -3,11 +3,12 @@ import re
 import requests
 import unicodedata
 from ..scraper_core.engage_scraper_core import EngageScraper
-from ..scraper_utils.dbutils import create_postgres_connection, create_postgres_session
+from ..scraper_utils.dbutils import create_postgres_connection, create_postgres_session, create_postgres_tables
 from ..scraper_utils.htmlutils import bs4_data_from_url, parse_query_params, check_style_special
 from ..scraper_utils.timeutils import string_datetime_to_timestamp
 from ..scraper_utils.textutils import check_last_word
-from .santamonica_scraper_models import Agenda, AgendaItem, AgendaRecommendation, Committee
+from .santamonica_scraper_models import Agenda, AgendaItem, AgendaRecommendation, Committee, Base
+from .santamonica_scraper_seeds import seed_tables
 import logging
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -16,13 +17,8 @@ SCRAPER_DEBUG = os.getenv('SCRAPER_DEBUG', "False") == "True"
 
 
 class SantaMonicaScraper(EngageScraper):
-    def __init__(self, base_agenda_location, agendas_table_location, tz_string="America/Los_Angeles", years=["2019"], committee="Santa Monica City Council"):
-        super().__init__(base_agenda_location, tz_string)
-
-        # Extra SM specific parameters
-        self._years = years
-        self._agendas_table_location = agendas_table_location
-        self._Committee = committee
+    def __init__(self, tz_string="America/Los_Angeles", years=["2019"], committee="Santa Monica City Council"):
+        super().__init__(tz_string)
 
         # Requests/HTML session
         self._session = requests.Session()
@@ -31,12 +27,41 @@ class SantaMonicaScraper(EngageScraper):
         self._engine = create_postgres_connection()
         self._DBsession = create_postgres_session(self._engine)
 
+        # Create tables
+        create_postgres_tables(Base, self._engine)
+        seed_tables(self._DBsession)
+
+        # Retrieve committee
+        self._Committee = self._DBsession().query(Committee).filter(
+            Committee.name == committee).first()
+
+        # Extra SM specific parameters
+        self._years = years
+        self._agendas_table_location = self._Committee.agendas_table_location
+        self.base_agenda_location = self._Committee.base_agenda_location
+
+    @property
+    def agendas_table_location(self):
+        return self._agendas_table_location
+
+    @agendas_table_location.setter
+    def agendas_table_location(self, table_location):
+        self._agendas_table_location = table_location
+
+    @property
+    def base_agenda_location(self):
+        return self._base_agenda_location
+
+    @base_agenda_location.setter
+    def base_agenda_location(self, base_location):
+        self._base_agenda_location = base_location
+
     def get_available_agendas(self):
         """
         First gets the agenda main page to retrieve updated ASPX embeded content
         """
         soup_agenda_locations_html = bs4_data_from_url(
-            self._agendas_table_location, self._session, "GET")
+            self.agendas_table_location, self._session, "GET")
         form = soup_agenda_locations_html.find('form', {'name': 'aspnetForm'})
         formInputs = form.findChildren('input')
         payload = dict()
@@ -55,7 +80,7 @@ class SantaMonicaScraper(EngageScraper):
         for year in self._years:
             payload["ctl00$ctl00$bodyContent$mainContent$ddlYears"] = str(year)
             soup = bs4_data_from_url(
-                self._agendas_table_location, self._session, "POST", payload)
+                self.agendas_table_location, self._session, "POST", payload)
             table = soup.find('table', {'class': 'agendaTable'})
             if table is None:
                 return None
@@ -65,36 +90,46 @@ class SantaMonicaScraper(EngageScraper):
                 if cells[1].string == "Agenda":
                     agenda_urls.append(cells[1].findChildren(
                         'a', {'href': True})[0]['href'])
-        self._set_agenda_locations(agenda_urls)
+        self.agenda_locations = agenda_urls
 
     def scrape(self):
         """
         scrape only unprocessed agendas
         """
         session = self._DBsession()
-        committee = session.query(Committee).filter(
-            Committee.name == self._Committee).first()
-        all_agenda_meeting_ids = [
-            meeting_id[0] for meeting_id in session.query(Agenda.meeting_id)]
-        agenda_meeting_ids_available = list(
-            map(lambda x: x.split("=")[1], self._agenda_locations))
+        committeeid = self._Committee.id
+        committees_meetings = session.query(Agenda).filter(
+            Agenda.committee_id == committeeid).all()
+        meetings_already_scraped = []
+        for agenda in committees_meetings:
+            agenda_items = session.query(AgendaItem).filter(
+                AgendaItem.agenda_id == agenda.id).all()
+            if len(agenda_items) > 0:
+                meetings_already_scraped.append(agenda.meeting_id)
+        meetings_already_scraped = sorted(meetings_already_scraped)
+        agenda_meeting_ids_available = sorted(list(
+            map(lambda x: x.split("=")[1], self.agenda_locations)))
+
         agenda_ids_to_scrape = list(filter(
-            lambda x: x not in all_agenda_meeting_ids, agenda_meeting_ids_available))
+            lambda x: x not in meetings_already_scraped, agenda_meeting_ids_available))
         if SCRAPER_DEBUG:
             log.error(agenda_ids_to_scrape)
 
         # Since we don't want to scrape everything just scrape what we need
         updated_agenda_locations = [
-            self._base_agenda_location + meeting_id for meeting_id in agenda_ids_to_scrape]
-        self._set_agenda_locations(updated_agenda_locations)
-
+            self.base_agenda_location + meeting_id for meeting_id in agenda_ids_to_scrape]
+        self.agenda_locations = updated_agenda_locations
         # Get the data
         scraped_agendas = dict()
-        for agenda_url in self._agenda_locations:
+        for agenda_url in self.agenda_locations:
+            if SCRAPER_DEBUG:
+                log.error(agenda_url)
             data = bs4_data_from_url(agenda_url, self._session, "GET")
             params = parse_query_params(agenda_url)
             if "ID" in params:
                 processed_data = self._process_agenda(data, params["ID"])
+                if SCRAPER_DEBUG:
+                    log.error("PROCESSED DATA: {} XXX".format(processed_data))
                 if processed_data is not None:
                     scraped_agendas[processed_data["meeting_time"]
                                     ] = processed_data
@@ -105,7 +140,7 @@ class SantaMonicaScraper(EngageScraper):
                     log.error(meeting_time)
                     log.error(agenda["meeting_id"])
                 if len(agenda["items"]) > 0:
-                    stored_agenda = self._store_agenda(agenda, committee)
+                    stored_agenda = self._store_agenda(agenda)
                     # now store items
                     self._store_agenda_items(agenda, stored_agenda)
 
@@ -161,7 +196,7 @@ class SantaMonicaScraper(EngageScraper):
         new_processed_agenda = self._combine_and_keep(
             processed_agenda, ["SPECIAL AGENDA ITEMS", "CONSENT CALENDAR", "STUDY SESSION", "CONTINUED ITEMS", "ADMINISTRATIVE PROCEEDINGS", "ORDINANCES", "STAFF ADMINISTRATIVE ITEMS", "PUBLIC HEARINGS"])
         return(new_processed_agenda)
-    
+
     def _test_item(self, keeping):
         if not keeping["recommendations"]:
             return False
@@ -169,7 +204,7 @@ class SantaMonicaScraper(EngageScraper):
             return False
         if not keeping["body"]:
             return False
-        
+        return True
 
     def _combine_and_keep(self, dictionary_agenda, keep):
         new_object = {
@@ -178,8 +213,10 @@ class SantaMonicaScraper(EngageScraper):
         }
         accumulator = []
         for keep_this in keep:
-            kept = [keeping for keeping in dictionary_agenda[keep_this] if self._test_item(keeping)]
+            kept = [keeping for keeping in dictionary_agenda[keep_this]
+                    if self._test_item(keeping)]
             accumulator.extend(kept)
+        log.error(accumulator)
         new_object["items"] = accumulator
         return new_object
 
@@ -210,7 +247,7 @@ class SantaMonicaScraper(EngageScraper):
         # Span where not [0-9]+.
         nbsps = re.compile("(nbspb;)+")
         number = re.compile("^[0-9]+.$")
-        reccomended_action = re.compile(
+        recommended_action = re.compile(
             r"Recommended Actions?\W*:?", re.RegexFlag.IGNORECASE)
         staff_recommends = re.compile(
             r"Staff recommends (that (the)? city council)?", re.RegexFlag.IGNORECASE)
@@ -221,11 +258,11 @@ class SantaMonicaScraper(EngageScraper):
             next = list_actions.find('li')
             while next is not None:
                 if next.name == 'ol':
-                    recommendations[-1] += unicodedata.normalize(
-                        "NFKD", next.get_text())
+                    recommendations[-1] += " "+unicodedata.normalize(
+                        "NFKD", next.get_text()).strip()
                 else:
-                    recommendations.append(unicodedata.normalize(
-                        "NFKD", next.get_text()))
+                    recommendations.append(" "+unicodedata.normalize(
+                        "NFKD", next.get_text().strip()))
                 next = next.next_sibling
         else:
             for p in ps:
@@ -233,12 +270,14 @@ class SantaMonicaScraper(EngageScraper):
                 spans = p.find_all('span')
                 for span in spans:
                     text = span.get_text()
-                    text = reccomended_action.sub("", text)
+                    text = unicodedata.normalize("NFKD", text)
+                    text = recommended_action.sub("", text)
                     text = staff_recommends.sub("", text)
                     text = nbsps.sub("", text)
                     text = text.strip(" \n:").strip()
-                    if text is not None and text != "" and \
-                            not number.search(text):
+                    if text == "":
+                        text = " "
+                    if text is not None and not number.search(text):
                         if current_recommendation and current_recommendation[-1] != " " and check_last_word(current_recommendation):
                             current_recommendation += " " + text
                         else:
@@ -256,7 +295,7 @@ class SantaMonicaScraper(EngageScraper):
         body_paragraphs = innerdiv.find_all('p', recursive=False)
         for p in body_paragraphs:
             spans = p.find_all('span')
-            processed_body.append("".join([unicodedata.normalize("NFKD", span.get_text()).strip() for span in spans if not (
+            processed_body.append(" ".join([unicodedata.normalize("NFKD", span.get_text()).strip() for span in spans if not (
                 span.attrs["style"] and check_style_special(span.attrs["style"]))]))
         processed_body = list(filter(lambda x: x, processed_body))
         return processed_body
@@ -304,14 +343,13 @@ class SantaMonicaScraper(EngageScraper):
 
         if not processed_item["body"] and not processed_item["recommendations"]:
             return None  # Will not capture items with no body and no recommendations
-
         return processed_item
 
-    def _store_agenda(self, processed_agenda, committee):
+    def _store_agenda(self, processed_agenda):
         session = self._DBsession()
         stored_agenda = Agenda(
             meeting_time=processed_agenda["meeting_time"],
-            committee_id=committee.id,
+            committee_id=self._Committee.id,
             meeting_id=processed_agenda["meeting_id"])
         session.add(stored_agenda)
         try:
