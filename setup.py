@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="engage_scraper",
-    version="0.0.12",
+    version="0.0.13",
     author="Engage",
     author_email="eli.j.selkin@gmail.com",
     description="An agenda scraper framework for municipalities",
@@ -22,7 +22,7 @@ setuptools.setup(
     install_requires=[
         'soupsieve',
         'beautifulsoup4',
-        'psycopg2',
+        'psycopg2-binary',
         'pytz',
         'requests',
         'SQLAlchemy',
