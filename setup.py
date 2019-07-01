@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="engage_scraper",
-    version="0.0.14",
+    version="0.0.15",
     author="Engage",
     author_email="eli.j.selkin@gmail.com",
     description="An agenda scraper framework for municipalities",

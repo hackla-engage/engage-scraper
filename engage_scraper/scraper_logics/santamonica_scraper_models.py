@@ -39,9 +39,9 @@ class Agenda(Base):
     committee_id = Column(ForeignKey(
         "ingest_committee.id", ondelete='CASCADE'))
     meeting_id = Column(String(20), nullable=False)  # Agenda ID
-    pdf_time = Column(Integer) # UNIX timestamp
-    cutoff_time = Column(Integer) # UNIX timestamp
-    pdf_location = Column(String, nullable=True) # static address for pdf 
+    pdf_time = Column(Integer)  # UNIX timestamp
+    cutoff_time = Column(Integer)  # UNIX timestamp
+    pdf_location = Column(String, nullable=True)  # static address for pdf
     processed = Column(Boolean, default=False)
 
 
@@ -84,10 +84,12 @@ class CommitteeMember(Base):
     committee_id = Column(ForeignKey(
         "ingest_committee.id", ondelete="CASCADE"))
 
+
 class EngageUser(Base):
-    __tablename__="ingest_engageuser"
-    id = Column(Integer, Sequence('ingest_engageuser_id_seq'), primary_key=True)
-    password= Column(String(128))
+    __tablename__ = "ingest_engageuser"
+    id = Column(Integer, Sequence(
+        'ingest_engageuser_id_seq'), primary_key=True)
+    password = Column(String(128))
     last_login = Column(DateTime(timezone=true), default=datetime.utcnow())
     is_superuser = Column(Boolean, default=False)
     username = Column(String(150))
@@ -98,12 +100,14 @@ class EngageUser(Base):
     date_joined = Column(DateTime(timezone=True), default=datetime.utcnow())
     email = Column(String(254))
 
+
 class Message(Base):
-    __tablename__= "ingest_message"
+    __tablename__ = "ingest_message"
     id = Column(Integer, Sequence('ingest_message_id_seq'), primary_key=True)
     user = Column(ForeignKey(
         "ingest_engageuser.id", ondelete='CASCADE'))
-    agenda_item = Column(ForeignKey('ingest_agendaitem.id', ondelete='CASCADE'))
+    agenda_item = Column(ForeignKey(
+        'ingest_agendaitem.id', ondelete='CASCADE'))
     content = Column(Text)
     committee = Column(ForeignKey(
         "ingest_committee.id", ondelete='CASCADE'))
@@ -121,7 +125,7 @@ class Message(Base):
     session_key = Column(String(100))
     # code challenge for user
     authcode = Column(String(254))
-    date = Column(Integer) # UNIX timestamp
-    sent = Column(Integer) # UNIX timestamp
+    date = Column(Integer)  # UNIX timestamp
+    sent = Column(Integer)  # UNIX timestamp
     # 0 = Con, 1 = Pro, 2 = Need more info
     pro = Column(Integer)
