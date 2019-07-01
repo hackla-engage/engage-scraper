@@ -1,6 +1,6 @@
 import psycopg2
 import sqlalchemy
-from sqlalchemy import Column, String, Integer, Text, Sequence, Float, ForeignKey, Boolean, Table
+from sqlalchemy import Column, String, Integer, Text, Sequence, Float, ForeignKey, Boolean, Table, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.ext.declarative import declarative_base
@@ -83,3 +83,45 @@ class CommitteeMember(Base):
     email = Column(String(250))
     committee_id = Column(ForeignKey(
         "ingest_committee.id", ondelete="CASCADE"))
+
+class EngageUser(Base):
+    __tablename__="ingest_engageuser"
+    id = Column(Integer, Sequence('ingest_engageuser_id_seq'), primary_key=True)
+    password= Column(String(128))
+    last_login = Column(DateTime(timezone=true), default=datetime.utcnow())
+    is_superuser = Column(Boolean, default=False)
+    username = Column(String(150))
+    first_name = Column(String(30))
+    last_name = Column(String(150))
+    is_staff = Column(Boolean, default=False)
+    is_active = Column(Boolean, default=True)
+    date_joined = Column(DateTime(timezone=True), default=datetime.utcnow())
+    email = Column(String(254))
+
+class Message(Base):
+    __tablename__= "ingest_message"
+    id = Column(Integer, Sequence('ingest_message_id_seq'), primary_key=True)
+    user = Column(ForeignKey(
+        "ingest_engageuser.id", ondelete='CASCADE'))
+    agenda_item = Column(ForeignKey('ingest_agendaitem.id', ondelete='CASCADE'))
+    content = Column(Text)
+    committee = Column(ForeignKey(
+        "ingest_committee.id", ondelete='CASCADE'))
+    first_name = Column(String(250))
+    last_name = Column(String(250))
+    zipcode = Column(Integer, default=90401)
+    email = Column(String(254))
+    home_owner = Column(Boolean, default=False)
+    business_owner = Column(Boolean, default=False)
+    resident = Column(Boolean, default=False)
+    works = Column(Boolean, default=False)
+    school = Column(Boolean, default=False)
+    child_school = Column(Boolean, default=False)
+    # Keep session key so if user authenticates one message it authenticates all messages
+    session_key = Column(String(100))
+    # code challenge for user
+    authcode = Column(String(254))
+    date = Column(Integer) # UNIX timestamp
+    sent = Column(Integer) # UNIX timestamp
+    # 0 = Con, 1 = Pro, 2 = Need more info
+    pro = Column(Integer)
