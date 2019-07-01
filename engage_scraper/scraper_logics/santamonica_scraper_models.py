@@ -90,7 +90,7 @@ class EngageUser(Base):
     id = Column(Integer, Sequence(
         'ingest_engageuser_id_seq'), primary_key=True)
     password = Column(String(128))
-    last_login = Column(DateTime(timezone=true), default=datetime.utcnow())
+    last_login = Column(DateTime(timezone=True), default=datetime.utcnow())
     is_superuser = Column(Boolean, default=False)
     username = Column(String(150))
     first_name = Column(String(30))
