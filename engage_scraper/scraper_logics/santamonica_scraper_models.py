@@ -1,5 +1,6 @@
 import psycopg2
 import sqlalchemy
+from datetime import datetime
 from sqlalchemy import Column, String, Integer, Text, Sequence, Float, ForeignKey, Boolean, Table, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import ARRAY
