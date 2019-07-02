@@ -105,12 +105,12 @@ class EngageUser(Base):
 class Message(Base):
     __tablename__ = "ingest_message"
     id = Column(Integer, Sequence('ingest_message_id_seq'), primary_key=True)
-    user = Column(ForeignKey(
+    user_id = Column(ForeignKey(
         "ingest_engageuser.id", ondelete='CASCADE'))
-    agenda_item = Column(ForeignKey(
+    agenda_item_id = Column(ForeignKey(
         'ingest_agendaitem.id', ondelete='CASCADE'))
     content = Column(Text)
-    committee = Column(ForeignKey(
+    committee_id = Column(ForeignKey(
         "ingest_committee.id", ondelete='CASCADE'))
     first_name = Column(String(250))
     last_name = Column(String(250))
