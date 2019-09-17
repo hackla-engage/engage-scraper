@@ -15,6 +15,7 @@ logging.basicConfig()
 log = logging.getLogger(__name__)
 
 SCRAPER_DEBUG = os.getenv('SCRAPER_DEBUG', "False") == "True"
+SPACE_REGEX = re.compile(r"[ \n]{2,}")
 
 
 class SantaMonicaScraper(EngageScraper):
@@ -217,7 +218,8 @@ class SantaMonicaScraper(EngageScraper):
             kept = [keeping for keeping in dictionary_agenda[keep_this]
                     if self._test_item(keeping)]
             accumulator.extend(kept)
-        log.error(accumulator)
+        if SCRAPER_DEBUG:
+            log.error(accumulator)
         new_object["items"] = accumulator
         return new_object
 
@@ -291,10 +293,18 @@ class SantaMonicaScraper(EngageScraper):
                     recommendations.append(current_recommendation)
         return recommendations
 
+    def _process_span(self, span):
+        processed_span = SPACE_REGEX.sub(' ', span)
+        return processed_span
+
     def _process_spans(self, spans):
         """
         spans are normalized but not processed. Here, determine how one span should be connected to another
         """
+        if len(spans) == 0:
+            return ""
+        processed_spans = "".join([self._process_span(span) for span in spans])
+        return processed_spans
 
     def _process_body(self, body_data):
         processed_body = []
@@ -302,12 +312,13 @@ class SantaMonicaScraper(EngageScraper):
         innerdiv = outerdiv.find('div')
         body_paragraphs = innerdiv.find_all('p', recursive=False)
         for body_paragraph in body_paragraphs:
-            log.error(body_paragraph.get_text())
+            if SCRAPER_DEBUG:
+                log.error(body_paragraph.get_text())
         for p in body_paragraphs:
             spans = p.find_all('span')
-            spans_normalized = [unicodedata.normalize("NFKD", span.get_text()).strip() for span in spans if not (
+            spans_normalized = [unicodedata.normalize("NFKD", span.get_text()) for span in spans if not (
                 span.attrs["style"] and check_style_special(span.attrs["style"]))]
-            processed_body = self._process_spans(spans_normalized)
+            processed_body.append(self._process_spans(spans_normalized))
         return processed_body
 
     def _process_agenda_item(self, agenda_item_data, agenda_item_id, meeting_id, meeting_time):
@@ -361,8 +372,9 @@ class SantaMonicaScraper(EngageScraper):
         dt = datetime.fromtimestamp(processed_agenda["meeting_time"])
         dt_local = dt.astimezone(tz=self._tz)
         dt_local = dt_local.replace(hour=self._Committee.cutoff_hour,
-                         minute=self._Committee.cutoff_minute)
-        dt_cutoff = dt_local + timedelta(days=self._Committee.cutoff_offset_days)
+                                    minute=self._Committee.cutoff_minute)
+        dt_cutoff = dt_local + \
+            timedelta(days=self._Committee.cutoff_offset_days)
         cutoff_timestamp = dt_cutoff.timestamp()
         pdf_timestamp = cutoff_timestamp + seconds_delta_for_pdf
         stored_agenda = Agenda(

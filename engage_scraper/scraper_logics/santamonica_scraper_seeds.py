@@ -8,6 +8,6 @@ def seed_tables(Session):
                               email="engage@engage.town",
                               cutoff_offset_days=0,
                               cutoff_hour=12,
-                              cutoff_minutes=0
+                              cutoff_minute=0
                               ))
         session.commit()
