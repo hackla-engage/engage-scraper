@@ -259,9 +259,11 @@ class SantaMonicaScraper(EngageScraper):
             next = list_actions.find('li')
             while next is not None:
                 if next.name == 'ol':
+
                     recommendations[-1] += " "+unicodedata.normalize(
                         "NFKD", next.get_text()).strip()
                 else:
+
                     recommendations.append(" "+unicodedata.normalize(
                         "NFKD", next.get_text().strip()))
                 next = next.next_sibling
@@ -289,16 +291,23 @@ class SantaMonicaScraper(EngageScraper):
                     recommendations.append(current_recommendation)
         return recommendations
 
+    def _process_spans(self, spans):
+        """
+        spans are normalized but not processed. Here, determine how one span should be connected to another
+        """
+
     def _process_body(self, body_data):
         processed_body = []
         outerdiv = body_data.find('div')
         innerdiv = outerdiv.find('div')
         body_paragraphs = innerdiv.find_all('p', recursive=False)
+        for body_paragraph in body_paragraphs:
+            log.error(body_paragraph.get_text())
         for p in body_paragraphs:
             spans = p.find_all('span')
-            processed_body.append(" ".join([unicodedata.normalize("NFKD", span.get_text()).strip() for span in spans if not (
-                span.attrs["style"] and check_style_special(span.attrs["style"]))]))
-        processed_body = list(filter(lambda x: x, processed_body))
+            spans_normalized = [unicodedata.normalize("NFKD", span.get_text()).strip() for span in spans if not (
+                span.attrs["style"] and check_style_special(span.attrs["style"]))]
+            processed_body = self._process_spans(spans_normalized)
         return processed_body
 
     def _process_agenda_item(self, agenda_item_data, agenda_item_id, meeting_id, meeting_time):

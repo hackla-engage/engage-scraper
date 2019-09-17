@@ -2,14 +2,21 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+
 def create_postgres_tables(Base, engine):
-    Base.metadata.create_all(engine)    
+    Base.metadata.create_all(engine)
+
 
 def create_postgres_connection():
-    uri = os.getenv('POSTGRES_URI')
+    username = os.getenv("POSTGRES_USER")
+    password = os.getenv("POSTGRES_PASSWORD")
+    hostname = os.getenv('POSTGRES_HOSTNAME')
+    port = os.getenv("POSTGRES_PORT")
     db = os.getenv('POSTGRES_DB')
-    engine = create_engine('postgresql+psycopg2://{}/{}'.format(uri,db))
+    engine = create_engine(
+        'postgresql+psycopg2://{}:{}@{}:{}/{}'.format(username, password, hostname, port, db))
     return engine
+
 
 def create_postgres_session(engine):
     Session = sessionmaker(bind=engine)
