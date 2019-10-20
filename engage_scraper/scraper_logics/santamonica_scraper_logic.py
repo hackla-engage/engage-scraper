@@ -10,6 +10,7 @@ from ..scraper_utils.timeutils import string_datetime_to_timestamp
 from ..scraper_utils.textutils import check_last_word
 from .santamonica_scraper_models import Agenda, AgendaItem, AgendaRecommendation, Committee, Base
 from .santamonica_scraper_seeds import seed_tables
+import twitter
 import logging
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -145,6 +146,9 @@ class SantaMonicaScraper(EngageScraper):
                     stored_agenda = self._store_agenda(agenda)
                     # now store items
                     self._store_agenda_items(agenda, stored_agenda)
+                    if SCRAPER_DEBUG:
+                        log.info("Sending tweet for {} meeting {} at {}".format(self._Committee.name, agenda["meeting_id"], meeting_time))
+                    
 
     def _process_agenda(self, agenda_data, meeting_id):
         date_time_string = agenda_data.find(
