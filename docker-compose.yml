@@ -1,0 +1,22 @@
+version: "3"
+
+services:
+  postgres:
+    hostname: postgres
+    image: postgres:11-alpine
+    env_file: 
+      - ../dev.env
+    ports: 
+      - "5432:5432"
+  scraper:
+    build: .
+    image: engage/engage-scraper
+    depends_on:
+      - "postgres"
+    env_file: 
+      - ../dev.env
+    volumes: 
+      - .:/engage-scraper
+    command: ['sh','/engage-scraper/scripts/rundev.sh']
+    links:
+      - "postgres"
