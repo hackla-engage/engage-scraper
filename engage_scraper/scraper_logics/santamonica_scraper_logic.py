@@ -10,6 +10,7 @@ from ..scraper_utils.timeutils import string_datetime_to_timestamp
 from ..scraper_utils.textutils import check_last_word
 from .santamonica_scraper_models import Agenda, AgendaItem, AgendaRecommendation, Committee, Base
 from .santamonica_scraper_seeds import seed_tables
+from ..scraper_utils.tweet import TwitterUtil
 import logging
 logging.basicConfig()
 log = logging.getLogger(__name__)

@@ -2,7 +2,7 @@
 
 ## v0.0.28
 
-- Add twitter capacity with tweet util
+- Add twitter capacity with TwitterUtil class in tweet.py in scraper_utils. Must pass init values from [Twitter Developer Apps](https://developer.twitter.com/en/apps)
 
 ## v0.0.27
 
