@@ -12,8 +12,11 @@ To extend this library for your municipality, override the methods of the base c
 
 To use the postgres `dbutils.py` make sure to set these two environment variables:
 
-* `POSTGRES_URI` # a URI string of the form `username:password@hostname`
-* `POSTGRES_DB`  # The database used for cataloging your municipality's agendas.
+* `POSTGRES_HOST` *optional* a host or hostname that is resolvable. Defaults to localhost
+* `POSTGRES_USER` *required*
+* `POSTGRES_PASSWORD` *required*
+* `POSTGRES_PORT` *optional* defaults to 5432
+* `POSTGRES_DB`  *required* The database used for cataloging your municipality's agendas.
 
 ## An example of using the Santa Monica scraper library
 
