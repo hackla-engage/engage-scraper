@@ -6,7 +6,7 @@ import unicodedata
 from ..scraper_core.engage_scraper_core import EngageScraper
 from ..scraper_utils.dbutils import create_postgres_connection, create_postgres_session, create_postgres_tables
 from ..scraper_utils.htmlutils import bs4_data_from_url, parse_query_params, check_style_special
-from ..scraper_utils.timeutils import string_datetime_to_timestamp
+from ..scraper_utils.timeutils import string_datetime_to_timestamp, timestamp_to_month_date
 from ..scraper_utils.textutils import check_last_word
 from .santamonica_scraper_models import Agenda, AgendaItem, AgendaRecommendation, Committee, Base
 from .santamonica_scraper_seeds import seed_tables
@@ -16,6 +16,11 @@ logging.basicConfig()
 log = logging.getLogger(__name__)
 
 SCRAPER_DEBUG = os.getenv('SCRAPER_DEBUG', "False") == "True"
+SCRAPER_VERBOSE_DEBUG = os.getenv('SCRAPER_VERBOSE_DEBUG', "False") == "True"
+CONSUMER_KEY = os.getenv('TWITTER_CONSUMER_KEY')
+CONSUMER_SECRET = os.getenv('TWITTER_CONSUMER_SECRET')
+ACCESS_TOKEN_KEY = os.getenv('TWITTER_ACCESS_TOKEN_KEY')
+ACCESS_TOKEN_SECRET = os.getenv('TWITTER_ACCESS_TOKEN_SECRET')
 SPACE_REGEX = re.compile(r"[ \n]{2,}")
 
 
@@ -29,6 +34,12 @@ class SantaMonicaScraper(EngageScraper):
         # For DB connection, make sure necessary environment variables are set
         self._engine = create_postgres_connection()
         self._DBsession = create_postgres_session(self._engine)
+
+        # For tweeting
+        self._twitter_util = TwitterUtil(CONSUMER_KEY,
+                                         CONSUMER_SECRET,
+                                         ACCESS_TOKEN_KEY,
+                                         ACCESS_TOKEN_SECRET)
 
         # Create tables
         create_postgres_tables(Base, self._engine)
@@ -131,24 +142,24 @@ class SantaMonicaScraper(EngageScraper):
             params = parse_query_params(agenda_url)
             if "ID" in params:
                 processed_data = self._process_agenda(data, params["ID"])
-                if SCRAPER_DEBUG:
+                if SCRAPER_VERBOSE_DEBUG:
                     log.error("PROCESSED DATA: {} XXX".format(processed_data))
                 if processed_data is not None:
-                    scraped_agendas[processed_data["meeting_time"]
-                                    ] = processed_data
-        if len(scraped_agendas.keys()) > 0:
-            # We got some new agendas
-            for (meeting_time, agenda) in scraped_agendas.items():
-                if SCRAPER_DEBUG:
-                    log.error(meeting_time)
-                    log.error(agenda["meeting_id"])
-                if len(agenda["items"]) > 0:
-                    stored_agenda = self._store_agenda(agenda)
-                    # now store items
-                    self._store_agenda_items(agenda, stored_agenda)
+                    agenda = processed_data
+                    meeting_time = processed_data["meeting_time"]
                     if SCRAPER_DEBUG:
-                        log.info("Sending tweet for {} meeting {} at {}".format(self._Committee.name, agenda["meeting_id"], meeting_time))
-                    
+                        log.error(meeting_time)
+                        log.error(agenda["meeting_id"])
+                    if len(agenda["items"]) > 0:
+                        stored_agenda = self._store_agenda(agenda)
+                        # now store items
+                        self._store_agenda_items(agenda, stored_agenda)
+                        newdate= timestamp_to_month_date(meeting_time, self._tz)
+                        if (newdate[0]):
+                            if SCRAPER_DEBUG:
+                                log.error("Sending tweet for {} meeting {} at {}".format(
+                                    self._Committee.name, agenda["meeting_id"], meeting_time))
+                            self._twitter_util.tweet("Agenda Items for the next @santamonicacity City Council meeting is open for public feedback until 11:59:59AM {}. Head to http://sm.engage.town now to voice your opinion!".format(newdate[1]))
 
     def _process_agenda(self, agenda_data, meeting_id):
         date_time_string = agenda_data.find(
@@ -222,7 +233,7 @@ class SantaMonicaScraper(EngageScraper):
             kept = [keeping for keeping in dictionary_agenda[keep_this]
                     if self._test_item(keeping)]
             accumulator.extend(kept)
-        if SCRAPER_DEBUG:
+        if SCRAPER_VERBOSE_DEBUG:
             log.error(accumulator)
         new_object["items"] = accumulator
         return new_object
@@ -316,7 +327,7 @@ class SantaMonicaScraper(EngageScraper):
         innerdiv = outerdiv.find('div')
         body_paragraphs = innerdiv.find_all('p', recursive=False)
         for body_paragraph in body_paragraphs:
-            if SCRAPER_DEBUG:
+            if SCRAPER_VERBOSE_DEBUG:
                 log.error(body_paragraph.get_text())
         for p in body_paragraphs:
             spans = p.find_all('span')
