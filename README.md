@@ -10,7 +10,7 @@ The Engage Scraper is a standalone library that can be included in any service. 
 
 To extend this library for your municipality, override the methods of the base class from the `scraper_core/` directory and put it in `scraper_logics/`, prefacing it with your municipality name. For an example see the Santa Monica, CA example in the `scraper_logics/` directory. The Santa Monica example makes use of `htmlutils.py` because it requires HTML scraping for its sources. Feel free to make PRs with new utilities (for example, PDF scraping, RSS scraping, JSON parsing, etc.). The Santa Monica example also uses SQLAlchemy for its models and that is what is preferred for use in the `dbutils.py`, however you can use anything. ORMs are preferred rather than vanilla psycopg2 or the like.
 
-To use the postgres `dbutils.py` make sure to set these two environment variables:
+To use the postgres `dbutils.py` make sure to set these 5 environment variables (check `dev.env` and see docker-compose usage below):
 
 * `POSTGRES_HOST` *optional* a host or hostname that is resolvable. Defaults to localhost
 * `POSTGRES_USER` *required*
@@ -30,7 +30,11 @@ scraper.scrape()
 
 ### For SantaMonicaScraper instantiation
 
-parameters are:
+#### For twitter utils used in SantaMonicaScraer
+
+To use the santa monica logic, you must create an App on twitter (will work to make this optional). Following making an app, please use the structure `dev.env` file to insert the appropriate parameters. But make sure not to make changes to the repository's file. Copy the file up one directory and edit it there. Following the edit, use the `docker-compose.yml` for testing. You can add examples to `examples/` and run them from the script in `scripts/` using the docker container. 
+
+#### For the SantaMonicaScraper class the init has these options:
 
 * `tz_string="America/Los_Angeles"` # defaulted string
 * `years=["2019"]` # defaulted array of strings of years
