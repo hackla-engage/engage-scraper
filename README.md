@@ -12,11 +12,11 @@ To extend this library for your municipality, override the methods of the base c
 
 To use the postgres `dbutils.py` make sure to set these 5 environment variables (check `dev.env` and see docker-compose usage below):
 
-* `POSTGRES_HOST` *optional* a host or hostname that is resolvable. Defaults to localhost
-* `POSTGRES_USER` *required*
-* `POSTGRES_PASSWORD` *required*
-* `POSTGRES_PORT` *optional* defaults to 5432
-* `POSTGRES_DB`  *required* The database used for cataloging your municipality's agendas.
+- `POSTGRES_HOST` _optional_ a host or hostname that is resolvable. Defaults to localhost
+- `POSTGRES_USER` _required_
+- `POSTGRES_PASSWORD` _required_
+- `POSTGRES_PORT` _optional_ defaults to 5432
+- `POSTGRES_DB` _required_ The database used for cataloging your municipality's agendas.
 
 ## An example of using the Santa Monica scraper library
 
@@ -32,20 +32,20 @@ scraper.scrape()
 
 #### For twitter utils used in SantaMonicaScraer
 
-To use the santa monica logic, you must create an App on twitter (will work to make this optional). Following making an app, please use the structure `dev.env` file to insert the appropriate parameters. But make sure not to make changes to the repository's file. Copy the file up one directory and edit it there. Following the edit, use the `docker-compose.yml` for testing. You can add examples to `examples/` and run them from the script in `scripts/` using the docker container. 
+To use the santa monica logic, you must create an App on twitter (will work to make this optional). Following making an app, please use the structure `dev.env` file to insert the appropriate parameters. But make sure not to make changes to the repository's file. Copy the file up one directory and edit it there. Following the edit, use the `docker-compose.yml` for testing. You can add examples to `examples/` and run them from the script in `scripts/` using the docker container.
 
-#### For the SantaMonicaScraper class the init has these options:
+#### For the SantaMonicaScraper class the init has these options
 
-* `tz_string="America/Los_Angeles"` # defaulted string
-* `years=["2019"]` # defaulted array of strings of years
-* `committee="Santa Monica City Council"` # defaulted string of council name
+- `tz_string="America/Los_Angeles"` # defaulted string
+- `years=["2019"]` # defaulted array of strings of years
+- `committee="Santa Monica City Council"` # defaulted string of council name
 
 ### The exposed API methods for scraper are
 
-* `.get_available_agendas()` # To get available agendas, no arguments
-* `.scrape()` # To process agendas and store contents
+- `.get_available_agendas()` # To get available agendas, no arguments
+- `.scrape()` # To process agendas and store contents
 
 ### Feel free to expose more
 
-* Write wrappers for internal functions if you want to expose them
-* Write extra functions to handle more complex municipality-specific tasks
+- Write wrappers for internal functions if you want to expose them
+- Write extra functions to handle more complex municipality-specific tasks
