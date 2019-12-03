@@ -1,6 +1,6 @@
 # Changelog for engage_scraper
 
-## v0.0.29
+## v0.0.30
 - Added elasticsearch ETL `elasticsearch/es_utils.py` to load agenda items once they have been scrapped. 
 
 ## v0.0.28
