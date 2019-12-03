@@ -26,5 +26,6 @@ setuptools.setup(
         'pytz',
         'requests',
         'SQLAlchemy',
-        'urllib3']
+        'urllib3', 
+        'python-twitter']
 )
