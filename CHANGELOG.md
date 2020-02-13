@@ -1,5 +1,8 @@
 # Changelog for engage_scraper
 
+## v0.0.30
+- Added elasticsearch ETL `elasticsearch/es_utils.py` to load agenda items once they have been scrapped. 
+
 ## v0.0.28
 
 - Add twitter capacity with TwitterUtil class in tweet.py in scraper_utils. Must pass init values from [Twitter Developer Apps](https://developer.twitter.com/en/apps)

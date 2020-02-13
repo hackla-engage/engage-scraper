@@ -11,6 +11,7 @@ from ..scraper_utils.textutils import check_last_word
 from .santamonica_scraper_models import Agenda, AgendaItem, AgendaRecommendation, Committee, Base
 from .santamonica_scraper_seeds import seed_tables
 from ..scraper_utils.tweet import TwitterUtil
+from ..elasticsearch.es_utils import ElasticsearchUtility
 import logging
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -22,6 +23,7 @@ CONSUMER_SECRET = os.getenv('TWITTER_CONSUMER_SECRET')
 ACCESS_TOKEN_KEY = os.getenv('TWITTER_ACCESS_TOKEN_KEY')
 ACCESS_TOKEN_SECRET = os.getenv('TWITTER_ACCESS_TOKEN_SECRET')
 SPACE_REGEX = re.compile(r"[ \n]{2,}")
+ES_ENABLED = os.environ.get('ES_ENABLED', 'False') == 'True' 
 
 
 class SantaMonicaScraper(EngageScraper):
@@ -53,6 +55,9 @@ class SantaMonicaScraper(EngageScraper):
         self._years = years
         self._agendas_table_location = self._Committee.agendas_table_location
         self.base_agenda_location = self._Committee.base_agenda_location
+
+        # Instantiate elasticsearch utility object
+        self._elasticsearch_utility = ElasticsearchUtility()
 
     @property
     def agendas_table_location(self):
@@ -425,6 +430,27 @@ class SantaMonicaScraper(EngageScraper):
                 # need id so must commit before next add
                 self._store_agenda_reccommendations(
                     item["recommendations"], new_agenda_item, session)
+
+                # load item to elasticsearch
+                if ES_ENABLED:
+                    es_item = {
+                        'date': item["meeting_time"],
+                        'agenda_item_id': item["agenda_item_id"],
+                        'agenda_id': agenda_saved.id,
+                        'title': item["title"],
+                        'recommendations': item["recommendations"],
+                        'body': item["body"],
+                        'department': item["department"],
+                        'sponsors': item["sponsors"],
+                        'tags': None,
+                        'committee': self._Committee.name,
+                        'committee_id': self._Committee.id,
+                    }
+
+                    es_load = self._elasticsearch_utility.loadItems(es_item)
+                    if SCRAPER_DEBUG:
+                        log.info(es_load)
+                
         except Exception as exc:
             log.error(
                 "Something happened when adding agenda items from agenda {}: {}".format(agenda_saved.id, str(exc)))
