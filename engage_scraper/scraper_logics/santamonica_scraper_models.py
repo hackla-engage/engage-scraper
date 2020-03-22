@@ -62,7 +62,7 @@ class AgendaItem(Base):
     sponsors = Column(String(250), nullable=True)
     agenda_id = Column(ForeignKey("ingest_agenda.id", ondelete="CASCADE"))
     meeting_time = Column(Integer)  # Unix timestamp
-    agenda_item_id = Column(String(20), nullable=False)
+    agenda_item_id = Column(String(20), nullable=False, unique=True)
     # tags = relationship("Tag", secondary=tag_association_table)
 
 

@@ -11,7 +11,7 @@ from ..scraper_utils.textutils import check_last_word
 from .santamonica_scraper_models import Agenda, AgendaItem, AgendaRecommendation, Committee, Base
 from .santamonica_scraper_seeds import seed_tables
 from ..scraper_utils.tweet import TwitterUtil
-from ..elasticsearch.es_utils import ElasticsearchUtility
+from ..scraper_utils.elasticsearch import ElasticsearchUtility
 import logging
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -23,11 +23,15 @@ CONSUMER_SECRET = os.getenv('TWITTER_CONSUMER_SECRET')
 ACCESS_TOKEN_KEY = os.getenv('TWITTER_ACCESS_TOKEN_KEY')
 ACCESS_TOKEN_SECRET = os.getenv('TWITTER_ACCESS_TOKEN_SECRET')
 SPACE_REGEX = re.compile(r"[ \n]{2,}")
-ES_ENABLED = os.environ.get('ES_ENABLED', 'False') == 'True' 
+ITEM_REGEX = re.compile(r"^[0-9]{1,3}.\W+")
+EMPTY_REGEX = re.compile(r"^[, ]$")
+DOT_REGEX = re.compile(r"^·\W+")
+ES_ENABLED = os.environ.get('ES_ENABLED', 'False') == 'True'
+TWITTER_ENABLED = os.getenv('TWITTER_ENABLED', 'False') == 'True'
 
 
 class SantaMonicaScraper(EngageScraper):
-    def __init__(self, tz_string="America/Los_Angeles", years=["2019"], committee="Santa Monica City Council"):
+    def __init__(self, tz_string="America/Los_Angeles", years=["2020"], test=False):
         super().__init__(tz_string)
 
         # Requests/HTML session
@@ -38,26 +42,23 @@ class SantaMonicaScraper(EngageScraper):
         self._DBsession = create_postgres_session(self._engine)
 
         # For tweeting
-        self._twitter_util = TwitterUtil(CONSUMER_KEY,
-                                         CONSUMER_SECRET,
-                                         ACCESS_TOKEN_KEY,
-                                         ACCESS_TOKEN_SECRET)
+        if TWITTER_ENABLED:
+            self._twitter_util = TwitterUtil(CONSUMER_KEY,
+                                             CONSUMER_SECRET,
+                                             ACCESS_TOKEN_KEY,
+                                             ACCESS_TOKEN_SECRET)
 
         # Create tables
         create_postgres_tables(Base, self._engine)
         seed_tables(self._DBsession)
 
-        # Retrieve committee
-        self._Committee = self._DBsession().query(Committee).filter(
-            Committee.name == committee).first()
-
         # Extra SM specific parameters
         self._years = years
-        self._agendas_table_location = self._Committee.agendas_table_location
-        self.base_agenda_location = self._Committee.base_agenda_location
 
         # Instantiate elasticsearch utility object
-        self._elasticsearch_utility = ElasticsearchUtility()
+        if ES_ENABLED:
+            self._elasticsearch_utility = ElasticsearchUtility()
+        self._test = test
 
     @property
     def agendas_table_location(self):
@@ -75,7 +76,17 @@ class SantaMonicaScraper(EngageScraper):
     def base_agenda_location(self, base_location):
         self._base_agenda_location = base_location
 
+    def set_committee(self, committee_name):
+        committee = self._DBsession().query(Committee).filter(
+            Committee.name == committee_name).first()
+        if committee is not None:
+            self._Committee = committee
+            self._agendas_table_location = self._Committee.agendas_table_location
+            self.base_agenda_location = self._Committee.base_agenda_location
+
     def get_available_agendas(self):
+        if self._Committee is None:
+            return
         """
         First gets the agenda main page to retrieve updated ASPX embeded content
         """
@@ -115,6 +126,8 @@ class SantaMonicaScraper(EngageScraper):
         """
         scrape only unprocessed agendas
         """
+        if self._Committee is None:
+            return
         session = self._DBsession()
         committeeid = self._Committee.id
         committees_meetings = session.query(Agenda).filter(
@@ -132,7 +145,7 @@ class SantaMonicaScraper(EngageScraper):
         agenda_ids_to_scrape = list(filter(
             lambda x: x not in meetings_already_scraped, agenda_meeting_ids_available))
         if SCRAPER_DEBUG:
-            log.error(agenda_ids_to_scrape)
+            log.error(f"AGENDA IDS TO SCRAPE: {agenda_ids_to_scrape}")
 
         # Since we don't want to scrape everything just scrape what we need
         updated_agenda_locations = [
@@ -159,12 +172,17 @@ class SantaMonicaScraper(EngageScraper):
                         stored_agenda = self._store_agenda(agenda)
                         # now store items
                         self._store_agenda_items(agenda, stored_agenda)
-                        newdate= timestamp_to_month_date(meeting_time, self._tz)
+                        newdate = timestamp_to_month_date(
+                            meeting_time, self._tz)
                         if (newdate[0]):
                             if SCRAPER_DEBUG:
                                 log.error("Sending tweet for {} meeting {} at {}".format(
                                     self._Committee.name, agenda["meeting_id"], meeting_time))
-                            self._twitter_util.tweet("Agenda Items for the next @santamonicacity City Council meeting is open for public feedback until 11:59:59AM {}. Head to http://sm.engage.town now to voice your opinion!".format(newdate[1]))
+                            if TWITTER_ENABLED:
+                                self._twitter_util.tweet(
+                                    "Agenda Items for the next @santamonicacity City Council meeting is open for public feedback until 11:59:59AM {}. Head to http://sm.engage.town now to voice your opinion!".format(newdate[1]))
+                        if self._test and len(processed_data["items"]) > 2:
+                            break
 
     def _process_agenda(self, agenda_data, meeting_id):
         date_time_string = agenda_data.find(
@@ -268,11 +286,9 @@ class SantaMonicaScraper(EngageScraper):
         # font-family:Arial; font-size:12pt is recommendations
         # Span's not equal to just &nbsp
         # Span where not [0-9]+.
-        nbsps = re.compile("(nbspb;)+")
-        number = re.compile("^[0-9]+.$")
-        recommended_action = re.compile(
+        recommended_action_re = re.compile(
             r"Recommended Actions?\W*:?", re.RegexFlag.IGNORECASE)
-        staff_recommends = re.compile(
+        staff_recommends_re = re.compile(
             r"Staff recommends (that (the)? city council)?", re.RegexFlag.IGNORECASE)
         ps = recommendations_data.find_all('p')
         list_actions = recommendations_data.find('ol')
@@ -281,40 +297,28 @@ class SantaMonicaScraper(EngageScraper):
             next = list_actions.find('li')
             while next is not None:
                 if next.name == 'ol':
-
                     recommendations[-1] += " "+unicodedata.normalize(
                         "NFKD", next.get_text()).strip()
                 else:
-
                     recommendations.append(" "+unicodedata.normalize(
                         "NFKD", next.get_text().strip()))
                 next = next.next_sibling
         else:
             for p in ps:
                 current_recommendation = ""
-                spans = p.find_all('span')
-                for span in spans:
-                    text = span.get_text()
-                    text = unicodedata.normalize("NFKD", text)
-                    text = recommended_action.sub("", text)
-                    text = staff_recommends.sub("", text)
-                    text = nbsps.sub("", text)
-                    text = text.strip(" \n:").strip()
-                    if text == "":
-                        text = " "
-                    if text is not None and not number.search(text):
-                        if current_recommendation and current_recommendation[-1] != " " and check_last_word(current_recommendation):
-                            current_recommendation += " " + text
-                        else:
-                            current_recommendation += text
-                if current_recommendation:
-                    current_recommendation = current_recommendation[0].upper(
-                    ) + current_recommendation[1:]
-                    recommendations.append(current_recommendation)
+                p_text = unicodedata.normalize("NFKD", p.get_text())
+                if staff_recommends_re.search(p_text) or recommended_action_re.search(p_text):
+                    continue
+                p_text = SPACE_REGEX.sub(" ", p_text)
+                p_text = ITEM_REGEX.sub("", p_text)
+                if EMPTY_REGEX.search(p_text) or p_text == "":
+                    continue
+                recommendations.append(p_text.strip())
         return recommendations
 
     def _process_span(self, span):
         processed_span = SPACE_REGEX.sub(' ', span)
+        processed_span = DOT_REGEX.sub("", processed_span)
         return processed_span
 
     def _process_spans(self, spans):
@@ -416,41 +420,45 @@ class SantaMonicaScraper(EngageScraper):
         session = self._DBsession()
         try:
             for item in agenda_dict["items"]:
-                new_agenda_item = AgendaItem(
-                    title=item["title"],
-                    department=item["department"],
-                    body=item["body"],
-                    sponsors=item["sponsors"],
-                    agenda_id=agenda_saved.id,
-                    meeting_time=item["meeting_time"],
-                    agenda_item_id=item["agenda_item_id"]
-                )
-                session.add(new_agenda_item)
-                session.commit()
-                # need id so must commit before next add
-                self._store_agenda_reccommendations(
-                    item["recommendations"], new_agenda_item, session)
+                try:
+                    new_agenda_item = AgendaItem(
+                        title=item["title"],
+                        department=item["department"],
+                        body=item["body"],
+                        sponsors=item["sponsors"],
+                        agenda_id=agenda_saved.id,
+                        meeting_time=item["meeting_time"],
+                        agenda_item_id=item["agenda_item_id"]
+                    )
+                    session.add(new_agenda_item)
+                    session.commit()
+                    # need id so must commit before next add
+                    self._store_agenda_reccommendations(
+                        item["recommendations"], new_agenda_item, session)
 
-                # load item to elasticsearch
-                if ES_ENABLED:
-                    es_item = {
-                        'date': item["meeting_time"],
-                        'agenda_item_id': item["agenda_item_id"],
-                        'agenda_id': agenda_saved.id,
-                        'title': item["title"],
-                        'recommendations': item["recommendations"],
-                        'body': item["body"],
-                        'department': item["department"],
-                        'sponsors': item["sponsors"],
-                        'tags': None,
-                        'committee': self._Committee.name,
-                        'committee_id': self._Committee.id,
-                    }
+                    # load item to elasticsearch
+                    if ES_ENABLED:
+                        es_item = {
+                            'date': item["meeting_time"],
+                            'agenda_item_id': item["agenda_item_id"],
+                            'agenda_id': agenda_saved.id,
+                            'title': item["title"],
+                            'recommendations': item["recommendations"],
+                            'body': item["body"],
+                            'department': item["department"],
+                            'sponsors': item["sponsors"],
+                            'tags': None,
+                            'committee': self._Committee.name,
+                            'committee_id': self._Committee.id,
+                        }
 
-                    es_load = self._elasticsearch_utility.loadItems(es_item)
-                    if SCRAPER_DEBUG:
-                        log.info(es_load)
-                
+                        es_load = self._elasticsearch_utility.postItem(es_item)
+                        if SCRAPER_DEBUG:
+                            log.info(es_load)
+                except Exception as itemExc:
+                    agendaitem = item["agenda_item_id"]
+                    log.error(
+                        f"Could not add item {agendaitem} with {itemExc}")
         except Exception as exc:
             log.error(
                 "Something happened when adding agenda items from agenda {}: {}".format(agenda_saved.id, str(exc)))

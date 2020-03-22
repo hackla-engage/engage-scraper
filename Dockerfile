@@ -6,3 +6,4 @@ ENV LIBRARY_PATH=/lib:/usr/lib
 COPY . /engage-scraper
 WORKDIR /engage-scraper
 RUN pip install -r engage_scraper/requirements.txt
+CMD [ "sh", "scripts/rundev.sh" ]

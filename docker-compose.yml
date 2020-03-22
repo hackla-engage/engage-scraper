@@ -5,18 +5,17 @@ services:
     hostname: postgres
     image: postgres:11-alpine
     env_file: 
-      - ../dev.env
+      - ../engconfig/engconfig.env
     ports: 
       - "5432:5432"
   scraper:
     build: .
-    image: engage/engage-scraper
+    image: hack4laengage/engage_scheduler:latest
     depends_on:
       - "postgres"
     env_file: 
-      - ../dev.env
+      - ../engconfig/engconfig.env
     volumes: 
       - .:/engage-scraper
-    command: ['sh','/engage-scraper/scripts/rundev.sh']
     links:
       - "postgres"
