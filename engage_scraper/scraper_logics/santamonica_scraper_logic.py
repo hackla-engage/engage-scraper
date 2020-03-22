@@ -181,7 +181,7 @@ class SantaMonicaScraper(EngageScraper):
                             if TWITTER_ENABLED:
                                 self._twitter_util.tweet(
                                     "Agenda Items for the next @santamonicacity City Council meeting is open for public feedback until 11:59:59AM {}. Head to http://sm.engage.town now to voice your opinion!".format(newdate[1]))
-                        if self._test and len(processed_data["items"]) > 2:
+                        if self._test and agenda["meeting_id"] == '1182':
                             break
 
     def _process_agenda(self, agenda_data, meeting_id):
@@ -287,9 +287,7 @@ class SantaMonicaScraper(EngageScraper):
         # Span's not equal to just &nbsp
         # Span where not [0-9]+.
         recommended_action_re = re.compile(
-            r"Recommended Actions?\W*:?", re.RegexFlag.IGNORECASE)
-        staff_recommends_re = re.compile(
-            r"Staff recommends (that (the)? city council)?", re.RegexFlag.IGNORECASE)
+            r"(^Recommended Actions?\W*:$)|(^Recommendation\W*$)?", re.RegexFlag.IGNORECASE)
         ps = recommendations_data.find_all('p')
         list_actions = recommendations_data.find('ol')
         if list_actions is not None:
@@ -307,7 +305,7 @@ class SantaMonicaScraper(EngageScraper):
             for p in ps:
                 current_recommendation = ""
                 p_text = unicodedata.normalize("NFKD", p.get_text())
-                if staff_recommends_re.search(p_text) or recommended_action_re.search(p_text):
+                if recommended_action_re.search(p_text):
                     continue
                 p_text = SPACE_REGEX.sub(" ", p_text)
                 p_text = ITEM_REGEX.sub("", p_text)

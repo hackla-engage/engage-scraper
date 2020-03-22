@@ -7,5 +7,6 @@ smscraper = SantaMonicaScraper(years=getenv("ENGAGE_COMMITTEE_YEARS", "2020").sp
 smscraper.set_committee("Santa Monica City Council")
 smscraper.get_available_agendas()
 smscraper.scrape()
-reccommendations = smscraper._DBsession().query(AgendaRecommendation).all()
-print(reccommendations[randrange(0, len(reccommendations))].recommendation)
+recommendations = smscraper._DBsession().query(AgendaRecommendation).all()
+for recommendation in recommendations:
+    print(recommendation.recommendation)
