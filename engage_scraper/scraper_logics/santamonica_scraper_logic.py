@@ -287,7 +287,7 @@ class SantaMonicaScraper(EngageScraper):
         # Span's not equal to just &nbsp
         # Span where not [0-9]+.
         recommended_action_re = re.compile(
-            r"(^Recommended Actions?\W*:$)|(^Recommendation\W*$)?", re.RegexFlag.IGNORECASE)
+            r"(^Recommended Actions?\W*:$)|(^Recommendation\W*$)", re.RegexFlag.IGNORECASE)
         ps = recommendations_data.find_all('p')
         list_actions = recommendations_data.find('ol')
         if list_actions is not None:
