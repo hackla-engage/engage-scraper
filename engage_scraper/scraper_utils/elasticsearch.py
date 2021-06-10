@@ -59,10 +59,10 @@ class ElasticsearchUtility():
                 }
             }
         }
-        r = requests.head(f"http://{ES_HOSTNAME}:9200/{ES_INDEX_NAME}?allow_no_indices=false")
+        r = requests.head(f"{ES_HOSTNAME}/{ES_INDEX_NAME}?allow_no_indices=false")
         self.status_code = r.status_code
         if self.status_code != requests.codes.ok:
-            reqPut = requests.put(f"http://{ES_HOSTNAME}:9200/{ES_INDEX_NAME}", json=self._agenda_items)
+            reqPut = requests.put(f"{ES_HOSTNAME}/{ES_INDEX_NAME}", json=self._agenda_items)
             responsePut = json.loads(reqPut.text)
             if not responsePut["acknowledged"]:
                 raise RuntimeError(f'Could not create ES index {reqPut.text}')
